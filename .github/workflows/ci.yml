@@ -1,0 +1,41 @@
+name: Orbit Validation CI
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  orbit-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install sgp4 scikit-learn
+
+      - name: Smoke test (Astropy + SGP4)
+        run: |
+          python - << 'EOF'
+          from astropy.time import Time
+          from sgp4.api import Satrec
+
+          t = Time("2025-01-01T12:00:00", scale="utc")
+          tle1 = "1 25544U 98067A   25001.50000000  .00016717  00000+0  10270-3 0  9003"
+          tle2 = "2 25544  51.6416 247.4627 0004238 130.5360 325.0288 15.49815378430000"
+
+          sat = Satrec.twoline2rv(tle1, tle2)
+          error, r, v = sat.sgp4(t.jd1, t.jd2)
+
+          assert error == 0
+          print("CI OK – orbit propagation works")
+          EOF
